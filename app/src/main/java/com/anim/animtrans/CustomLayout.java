@@ -1,64 +1,33 @@
 package com.anim.animtrans;
 
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.graphics.Point;
-import android.support.v4.widget.ViewDragHelper;
 import android.util.AttributeSet;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.animation.Animation;
-import android.view.animation.OvershootInterpolator;
-import android.view.animation.TranslateAnimation;
+import android.util.DisplayMetrics;
+import android.util.Log;
+import android.view.animation.AccelerateInterpolator;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
-/**
- * Created by Administrator on 2018/1/16.
- */
-
-public class CustomLayout extends RelativeLayout {
+public class CustomLayout extends RelativeLayout implements DragView1.LocationListener {
+    private final int screenWidth, screenHeight;
     private Context context;
-    private View mAutoBackView;
-    private Point mAutoBackOriginPos = new Point();
-    float moveX;
-    float moveY;
-    private int mLeft;
-    public boolean mNeedLayout;
-    public int mBottom;
-    public int mRight;
-    public int mTop;
+    private DragView1 mAutoBackView;
+    public static Point mAutoBackOriginPos = new Point();
+    public static Point mAutoBackOriginPosEnd = new Point();
+    private int mWidth, mHeight;
 
     public CustomLayout(final Context context, AttributeSet attrs) {
         super(context, attrs);
         this.context = context;
+        DisplayMetrics dm = new DisplayMetrics();
+        dm = getResources().getDisplayMetrics();
+        screenWidth = dm.widthPixels; // 屏幕宽
+        screenHeight = dm.heightPixels; // 屏幕高
     }
 
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                moveX = event.getX();
-                moveY = event.getY();
-                break;
-            case MotionEvent.ACTION_MOVE:
-//                setTranslationX(getX() + (event.getX() - moveX));
-//                setTranslationY(getY() + (event.getY() - moveY));
-//                mAutoBackView.layout((int) (getX() + (event.getX() - moveX)), (int) (getY() + (event.getY() - moveY)), (int) (getX() + (event.getX() - moveX) + mAutoBackView.getWidth()), (int) (getY() + (event.getY() - moveY) + mAutoBackView.getHeight()));
-                break;
-            case MotionEvent.ACTION_UP:
-                break;
-            case MotionEvent.ACTION_CANCEL:
-                break;
-        }
-
-
-        return true;
-    }
-
-    @Override
-    public void computeScroll() {
-    }
 
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
@@ -66,6 +35,10 @@ public class CustomLayout extends RelativeLayout {
         if (mAutoBackView != null) {
             mAutoBackOriginPos.x = mAutoBackView.getLeft();
             mAutoBackOriginPos.y = mAutoBackView.getTop();
+            Log.d("CustomLayout", "mAutoBackOriginPos.x:" + mAutoBackOriginPos.x);
+            Log.d("CustomLayout", "mAutoBackOriginPos.y:" + mAutoBackOriginPos.y);
+            mWidth = mAutoBackView.getWidth();
+            mHeight = mAutoBackView.getHeight();
         }
     }
 
@@ -73,7 +46,8 @@ public class CustomLayout extends RelativeLayout {
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
-        mAutoBackView = findViewById(R.id.new_item);
+        mAutoBackView = findViewById(R.id.dragview1);
+        mAutoBackView.setLocationListener(this);
     }
 
     @Override
@@ -81,60 +55,36 @@ public class CustomLayout extends RelativeLayout {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
-
-    /**
-     * 动画移动view并摆放至相应的位置
-     *
-     * @param view               控件
-     * @param xFromDeltaDistance x起始位置的偏移量
-     * @param xToDeltaDistance   x终止位置的偏移量
-     * @param yFromDeltaDistance y起始位置的偏移量
-     * @param yToDeltaDistance   y终止位置的偏移量
-     * @param duration           动画的播放时间
-     * @param delay              延迟播放时间
-     * @param isBack             是否需要返回到开始位置
-     */
-    public void moveViewWithAnimation(final View view, final float xFromDeltaDistance, final float xToDeltaDistance, final float yFromDeltaDistance, final float yToDeltaDistance, int duration, int delay, final boolean isBack) {
-        //创建位移动画
-        TranslateAnimation ani = new TranslateAnimation(xFromDeltaDistance, xToDeltaDistance, yFromDeltaDistance, yToDeltaDistance);
-        ani.setInterpolator(new OvershootInterpolator());//设置加速器
-        ani.setDuration(duration);//设置动画时间
-        ani.setStartOffset(delay);//设置动画延迟时间
-        //监听动画播放状态
-        ani.setAnimationListener(new Animation.AnimationListener() {
-
-            @Override
-            public void onAnimationStart(Animation animation) {
-            }
-
-            @Override
-            public void onAnimationRepeat(Animation animation) {
-            }
-
-            @Override
-            public void onAnimationEnd(Animation animation) {
-                int deltaX = (int) (xToDeltaDistance - xFromDeltaDistance);
-                int deltaY = (int) (yToDeltaDistance - yFromDeltaDistance);
-                int layoutX = view.getLeft();
-                int layoutY = view.getTop();
-                int tempWidth = view.getWidth();
-                int tempHeight = view.getHeight();
-                view.clearAnimation();
-                if (isBack == false) {
-                    layoutX += deltaX;
-                    layoutY += deltaY;
-                    view.layout(layoutX, layoutY, layoutX + tempWidth, layoutY + tempHeight);
-                } else {
-                    view.layout(layoutX, layoutY, layoutX + tempWidth, layoutY + tempHeight);
-                }
-                mLeft = layoutX;
-                mTop = layoutY;
-                mRight = layoutX + tempWidth;
-                mBottom = layoutY + tempHeight;
-                mNeedLayout = true;
-            }
-        });
-        view.startAnimation(ani);
+    @Override
+    public void onActionMoveListener() {
+        mAutoBackOriginPosEnd.x = mAutoBackView.getLeft();
+        mAutoBackOriginPosEnd.y = mAutoBackView.getTop();
     }
+
+    @Override
+    public void onActionUpListener() {
+        mAutoBackOriginPosEnd.x = mAutoBackView.getLeft();
+        mAutoBackOriginPosEnd.y = mAutoBackView.getTop();
+
+        if (Math.abs(mAutoBackOriginPosEnd.y - mAutoBackOriginPos.y) > 100) {
+            Log.d("CustomLayout", "应当弹出替换窗口");
+            ImageView imageView = new ImageView(context);
+            imageView.setImageResource(R.mipmap.ic_launcher);
+            RelativeLayout.LayoutParams parms = new LayoutParams(100, 100);
+            parms.leftMargin = mAutoBackOriginPosEnd.x;
+            parms.topMargin = mAutoBackOriginPosEnd.y;
+            imageView.setLayoutParams(parms);
+            addView(imageView);
+        } else {
+            Log.d("CustomLayout", "自动返回");
+            AnimatorSet set = new AnimatorSet();
+            set.playTogether(
+                    ObjectAnimator.ofFloat(mAutoBackView, "translationX", -(mAutoBackOriginPosEnd.x - mAutoBackOriginPos.x)),
+                    ObjectAnimator.ofFloat(mAutoBackView, "translationY", -(mAutoBackOriginPosEnd.y - mAutoBackOriginPos.y)));
+            set.setInterpolator(new AccelerateInterpolator());
+            set.setDuration(500).start();
+        }
+    }
+
 
 }
